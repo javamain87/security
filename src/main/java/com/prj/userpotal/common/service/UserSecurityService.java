@@ -1,5 +1,6 @@
 package com.prj.userpotal.common.service;
 
+import com.prj.userpotal.user.repo.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,10 +13,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserSecurityService implements UserDetailsService {
 
-//    private final UserRepository userRepository;
+    private final MemberRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return null;
+        return userRepository.findByEmail(username);
     }
 }

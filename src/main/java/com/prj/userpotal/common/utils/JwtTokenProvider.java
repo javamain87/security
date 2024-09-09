@@ -2,6 +2,8 @@ package com.prj.userpotal.common.utils;
 
 import com.prj.userpotal.common.service.UserSecurityService;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.security.Key;
 import java.util.Date;
 import java.util.List;
 
@@ -28,7 +31,7 @@ public class JwtTokenProvider {
     public String createToken(String username, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);
         claims.put("roles", roles);
-
+        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
@@ -36,7 +39,7 @@ public class JwtTokenProvider {
                 .setClaims(claims)
                 .setIssuedAt(now)
                 .setExpiration(validity)
-                .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)
+                .signWith(key)
                 .compact();
     }
 
@@ -46,16 +49,34 @@ public class JwtTokenProvider {
     }
 
     public String getUsername(String token) {
-        return Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes())).build().parseClaimsJwt(token).getBody().getSubject();
+        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJwt(token)
+                .getBody()
+                .getSubject();
     }
 
     public boolean validateToken(String token) {
+        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
         try {
-            Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes())).build().parseClaimsJwt(token);
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJwt(token);
             return true;
         } catch (MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException ex) {
             // Log the exception
             return false;
         }
+    }
+    public String encodeBase64SecreKey(String secreKey) {
+        return Encoders.BASE64.encode(secreKey.getBytes());
+    }
+
+    private Key getKeyBase64EncodingKey(String base64secreKey){
+        byte[] keyBytes = Decoders.BASE64.decode(base64secreKey);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }

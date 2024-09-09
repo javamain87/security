@@ -59,14 +59,14 @@ public class MemberServiceImpl implements MemberService {
 
         String token = request.getHeader("Authorization");
         if (ObjectUtils.isEmpty(token)) {
-            response.setHeader("Authorization", jwtTokenProvider.createToken(members.getUsername(), listRoleConvert(members.getRole())));
+            response.setHeader("Authorization", jwtTokenProvider.createToken(members.getUsername(), listRoleConvert(info.getRole())));
             log.info("token::::: {}", response.getHeader("Authorization"));
             return info;
         } else {
             if (jwtTokenProvider.validateToken(token)) {
                 return info;
             } else {
-                throw new MissingFormatArgumentException("토큰이 만료 되었습니다.");
+                throw new RuntimeException("토큰이 만료 되었습니다.");
             }
         }
     }
