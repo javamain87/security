@@ -1,5 +1,6 @@
 package com.prj.userpotal.common.utils;
 
+import com.prj.userpotal.common.exception.JwtExceptionType;
 import com.prj.userpotal.common.service.UserSecurityService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -31,7 +32,7 @@ public class JwtTokenProvider {
     public String createToken(String username, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);
         claims.put("roles", roles);
-        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
+        Key key = getKeyFromBase64EncodedSecretKey(encodeBase64SecretKey(secretKey));
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
@@ -49,34 +50,41 @@ public class JwtTokenProvider {
     }
 
     public String getUsername(String token) {
-        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJwt(token)
-                .getBody()
-                .getSubject();
+        return parseClaims(token).getSubject();
     }
 
     public boolean validateToken(String token) {
-        Key key = getKeyBase64EncodingKey(encodeBase64SecreKey(secretKey));
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJwt(token);
-            return true;
-        } catch (MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException ex) {
-            // Log the exception
-            return false;
+            parseClaims(token);
+        } catch (ExpiredJwtException e) {
+            throw new JwtException(JwtExceptionType.EXPIRED_TOKEN.toString());
+        } catch (UnsupportedJwtException e) {
+            throw new JwtException(JwtExceptionType.UNSUPPORTED_TOKEN.toString());
+        } catch (MalformedJwtException e) {
+            throw new JwtException(JwtExceptionType.MALFORMED_TOKEN.toString());
+        } catch (SignatureException e) {
+            throw new JwtException(JwtExceptionType.INVALID_SIGNATURE.toString());
+        } catch (IllegalArgumentException e) {
+            throw new JwtException(JwtExceptionType.INVALID_TOKEN.toString());
         }
-    }
-    public String encodeBase64SecreKey(String secreKey) {
-        return Encoders.BASE64.encode(secreKey.getBytes());
+        return false;
     }
 
-    private Key getKeyBase64EncodingKey(String base64secreKey){
-        byte[] keyBytes = Decoders.BASE64.decode(base64secreKey);
+    private Claims parseClaims(String token) {
+        Key key = getKeyFromBase64EncodedSecretKey(encodeBase64SecretKey(secretKey));
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private String encodeBase64SecretKey(String secretKey) {
+        return Encoders.BASE64.encode(secretKey.getBytes());
+    }
+
+    private Key getKeyFromBase64EncodedSecretKey(String base64EncodedSecretKey) {
+        byte[] keyBytes = Decoders.BASE64.decode(base64EncodedSecretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
